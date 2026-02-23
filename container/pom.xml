@@ -1,0 +1,355 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.mobicents.servers.jainslee.core</groupId>
+		<artifactId>restcomm-slee-core</artifactId>
+		<version>8.2.1-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+	<artifactId>restcomm-slee-core-container</artifactId>
+
+	<packaging>pom</packaging>
+
+	<properties>
+		<slee.name>Restcomm JAIN SLEE</slee.name>
+		<slee.vendor>Restcomm</slee.vendor>
+		<slee.version>${project.version}</slee.version>
+		<slee.codename>???</slee.codename>
+
+		<!-- OTHER MOBICENTS COMPONENTS VERSIONS -->
+		<!--
+		<jboss-serialization.version>1.0.3.GA</jboss-serialization.version>
+		<trove.version>1.0.2</trove.version>
+		-->
+
+		<jain-slee-11-ext.version>${project.version}</jain-slee-11-ext.version>
+
+		<!--<version.jboss.as>7.2.0.Final</version.jboss.as>-->
+		<version.wildfly.as>24.0.1.Final</version.wildfly.as>
+		<version.wildfly.core>16.0.1.Final</version.wildfly.core>
+
+		<!--<version.jboss.msc>1.0.4.GA</version.jboss.msc>-->
+		<version.jboss.msc>1.4.12.Final</version.jboss.msc>
+
+		<!--<version.javassist>3.15.0-GA</version.javassist>-->
+		<version.javassist>3.18.1-GA</version.javassist>
+		<!--<version.hibernate>4.2.0.CR1</version.hibernate>-->
+		<version.hibernate>5.3.20.Final</version.hibernate>
+
+		<restcomm.cluster.version>4.0.0-2</restcomm.cluster.version>
+		<!--<version.jgoups>3.2.7.Final</version.jgoups>-->
+		<version.jgoups>3.6.10.Final</version.jgoups>
+		<!--<version.infinispan>5.2.1.Final</version.infinispan>-->
+		<version.infinispan>12.1.4.Final</version.infinispan>
+
+		<!--<version.jboss.logging>3.1.2.GA</version.jboss.logging>-->
+		<version.jboss.logging>3.3.0.Final</version.jboss.logging>
+		<!--<version.vfs>3.2.0.Final</version.vfs>-->
+		<version.vfs>3.2.12.Final</version.vfs>
+		<version.junit>4.8.2</version.junit>
+	</properties>
+
+	<modules>
+		<module>jmx-property-editors</module>
+		<module>spi</module>
+		<module>common</module>
+		<module>usage</module>
+		<module>activities</module>
+		<module>events</module>
+		<module>profiles</module>
+		<module>remote</module>
+		<module>router</module>
+		<module>transaction</module>
+		<module>components</module>
+		<module>fault-tolerant-ra</module>
+		<module>resource</module>
+		<module>timers</module>
+		<module>services</module>
+		<module>congestion</module>
+		<module>standard-components</module>
+		<module>build</module>
+	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+
+			<dependency>
+				<groupId>commons-lang</groupId>
+				<artifactId>commons-lang</artifactId>
+				<version>2.6</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.infinispan</groupId>
+				<artifactId>infinispan-core</artifactId>
+				<version>${version.infinispan}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.restcomm.cluster</groupId>
+				<artifactId>core</artifactId>
+				<version>${restcomm.cluster.version}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.restcomm.cluster</groupId>
+				<artifactId>cache</artifactId>
+				<version>${restcomm.cluster.version}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.restcomm.cluster</groupId>
+				<artifactId>timers</artifactId>
+				<version>${restcomm.cluster.version}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.mobicents.servers.jainslee.api</groupId>
+				<artifactId>jain-slee-11-ext</artifactId>
+				<version>${jain-slee-11-ext.version}</version>				
+			</dependency>
+
+			<dependency>
+				<groupId>org.jboss.logging</groupId>
+				<artifactId>jboss-logging</artifactId>
+				<version>${version.jboss.logging}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.javassist</groupId>
+				<artifactId>javassist</artifactId>
+				<version>${version.javassist}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-controller</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			-->
+
+			<dependency>
+				<groupId>org.wildfly.core</groupId>
+				<artifactId>wildfly-controller</artifactId>
+				<version>${version.wildfly.core}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-jmx</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			-->
+
+			<dependency>
+				<groupId>org.wildfly.core</groupId>
+				<artifactId>wildfly-jmx</artifactId>
+				<version>${version.wildfly.core}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-server</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			-->
+
+			<dependency>
+				<groupId>org.wildfly.core</groupId>
+				<artifactId>wildfly-server</artifactId>
+				<version>${version.wildfly.core}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-transactions</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			-->
+
+			<dependency>
+				<groupId>org.wildfly</groupId>
+				<artifactId>wildfly-transactions</artifactId>
+				<version>${version.wildfly.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.jboss</groupId>
+				<artifactId>jboss-vfs</artifactId>
+				<version>${version.vfs}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-subsystem-test</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>test</scope>
+			</dependency>
+			-->
+
+			<!--
+            <dependency>
+                <groupId>org.wildfly.core</groupId>
+                <artifactId>wildfly-subsystem-test</artifactId>
+                <version>${version.wildfly.core}</version>
+                <scope>test</scope>
+            </dependency>
+            -->
+
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<scope>test</scope>
+				<version>${version.junit}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.hibernate</groupId>
+				<artifactId>hibernate-core</artifactId>
+				<version>${version.hibernate}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.hibernate</groupId>
+				<artifactId>hibernate-entitymanager</artifactId>
+				<version>${version.hibernate}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-jpa</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-naming</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			-->
+
+			<dependency>
+				<groupId>org.wildfly</groupId>
+				<artifactId>wildfly-jpa</artifactId>
+				<version>${version.wildfly.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.wildfly</groupId>
+				<artifactId>wildfly-naming</artifactId>
+				<version>${version.wildfly.as}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>javax.resource</groupId>
+				<artifactId>connector</artifactId>
+				<version>1.0</version>
+			</dependency>
+
+			<!--
+			<dependency>
+				<groupId>org.jboss.as</groupId>
+				<artifactId>jboss-as-connector</artifactId>
+				<version>${version.jboss.as}</version>
+				<scope>provided</scope>
+			</dependency>
+			-->
+
+			<dependency>
+				<groupId>org.wildfly</groupId>
+				<artifactId>wildfly-connector</artifactId>
+				<version>${version.wildfly.as}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jboss.msc</groupId>
+				<artifactId>jboss-msc</artifactId>
+				<version>${version.jboss.msc}</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jboss.common</groupId>
+				<artifactId>jboss-common-beans</artifactId>
+				<version>2.0.0.Final</version>
+				<scope>provided</scope>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
+
+	<profiles>
+		<profile>
+			<id>maven-release</id>
+			<modules>
+				<module>docs</module>
+			</modules>
+		</profile>
+		<profile>
+			<id>release</id>
+			<modules>
+				<module>docs</module>
+			</modules>			
+		</profile>
+		<profile>
+			<id>restcomm</id>
+			<properties>
+				<slee.name>Restcomm JAIN SLEE</slee.name>
+				<slee.vendor>Restcomm</slee.vendor>
+			</properties>			
+		</profile>
+	</profiles>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${compiler.plugin.version}</version>
+				<configuration>
+					<source>${compile.source}</source>
+					<target>${compile.source}</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-eclipse-plugin</artifactId>
+				<groupId>org.mobicents.tools</groupId>
+				<inherited>false</inherited>
+				<executions />
+				<configuration>
+					<excludePoms />
+					<classpathExcludes>
+						<exclude>xml-apis:xml-apis</exclude>
+						<exclude>jtidy:jtidy</exclude>
+					</classpathExcludes>
+					<resolveTransitiveDependencies>true</resolveTransitiveDependencies>
+					<eclipseProjectName>slee-core-container</eclipseProjectName>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

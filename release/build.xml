@@ -1,0 +1,814 @@
+<?xml version="1.0"?>
+<project name="restcomm.release" default="release-wildfly" basedir=".">
+
+	<property environment="sys" />
+
+	<property name="release.version" value="3.0.0" />
+	<property name="release.profile" value="restcomm" />
+	<property name="validate.versions" value="" />
+	<property name="wildfly.config" value="standalone" />
+
+	<property name="output.dir" value="${basedir}/target" />
+	<property name="release.dir" value="${output.dir}/binary" />
+	<property name="packages.dir" value="${basedir}/checkout" />
+	<property name="tmp.wildfly.home" value="${output.dir}/tmp" />
+
+	<property name="wildfly.version" value="24.0.1.Final" />
+	<property name="wildfly.distro.zip.path" value="wildfly-${wildfly.version}.zip" />
+	<property name="wildfly.home.relative.path" value="wildfly-${wildfly.version}/" />
+	<property name="wildfly.home" value="${release.dir}/${wildfly.home.relative.path}/" />
+
+	<available file="${ant.file.restcomm.release}/../${wildfly.distro.zip.path}" property="got.wildfly" />
+
+	<property name="h2.version" value="1.4.197" />
+	<property name="h2.distro.jar.path" value="h2-${h2.version}.jar" />
+	<available file="${ant.file.restcomm.release}/../${h2.distro.jar.path}" property="got.h2" />
+	<property name="h2database.url" value="https://repo1.maven.org/maven2/com/h2database/h2/1.4.197/h2-1.4.197.jar" />
+
+	<property name="paic.url" value="http://45.79.17.57/PAIC_Extended" />
+
+	<!-- Diameter -->
+	<property name="diameter.build" value="302"/>
+	<property name="diameter.version" value="2.0.0-${diameter.build}"/>
+	<property name="diameter.zip" value="restcomm-diameter-mux-wildfly-${diameter.version}.zip"/>
+	<property name="diameter.download.url" value="${paic.url}/extended_jdiameter/${diameter.version}/${diameter.zip}" />
+	<property name="diameter.distro.zip.path" value="restcomm-diameter.zip" />
+
+	<!-- SS7 -->
+	<property name="ss7.build" value="318"/>
+	<property name="ss7.version" value="9.0.0-${ss7.build}"/>
+	<property name="ss7.zip" value="Extended-jSS7-${ss7.version}.zip"/>
+	<property name="ss7.download.url" value="${paic.url}/jss7/${ss7.zip}" />
+	<property name="ss7.distro.zip.path" value="restcomm-ss7.zip" />
+
+	<!-- SMPP Extensions -->
+	<property name="smppext.build" value="207"/>
+	<property name="smppext.version" value="7.1.0-${smppext.build}"/>
+	<property name="smppext.zip" value="Extended-SMPP-Extensions-${smppext.version}.zip"/>
+	<property name="smppext.download.url" value="${paic.url}/smpp-extensions/${smppext.zip}" />
+	<property name="smppext.distro.zip.path" value="restcomm-smpp-extensions.zip" />
+
+	<taskdef onerror="fail" resource="net/sf/antcontrib/antlib.xml">
+		<classpath>
+			<pathelement location="${ant.file.restcomm.release}/../ant-contrib-1.0b3.jar" />
+		</classpath>
+	</taskdef>
+
+	<path id="xmltask.path">
+		<pathelement path="${basedir}/xmltask.jar" />
+	</path>
+	<taskdef name="xmltask" classpathref="xmltask.path" classname="com.oopsconsultancy.xmltask.ant.XmlTask" />
+
+	<condition property="mvn.executable" value="${sys.M2_HOME}\bin\mvn.bat">
+		<and>
+			<os family="windows" />
+			<isset property="sys.M2_HOME" />
+            <resourceexists>
+                <file file="${sys.M2_HOME}\bin\mvn.bat" />
+            </resourceexists>
+		</and>
+	</condition>
+
+    <!-- Newer Maven (-windows) versions shifted from .bat to .cmd. Accomodate that -->
+	<condition property="mvn.executable" value="${sys.M2_HOME}\bin\mvn.cmd">
+		<and>
+			<os family="windows" />
+			<isset property="sys.M2_HOME" />
+            <resourceexists>
+                <file file="${sys.M2_HOME}\bin\mvn.cmd" />
+            </resourceexists>
+		</and>
+	</condition>
+
+	<condition property="mvn.executable" value="mvn.bat">
+		<and>
+			<os family="windows" />
+			<not>
+				<isset property="sys.M2_HOME" />
+			</not>
+		</and>
+	</condition>
+
+	<condition property="mvn.executable" value="${sys.M2_HOME}/bin/mvn">
+		<and>
+			<not>
+				<os family="windows" />
+			</not>
+			<isset property="sys.M2_HOME" />
+		</and>
+	</condition>
+
+	<condition property="mvn.executable" value="mvn">
+		<and>
+			<not>
+				<os family="windows" />
+			</not>
+			<not>
+				<isset property="sys.M2_HOME" />
+			</not>
+		</and>
+	</condition>
+
+	<target name="build-core" description="">
+		<property name="core.profiles" value="deploy-module-wildfly,deploy-configuration-wildfly" />
+		<exec failonerror="true" executable="${mvn.executable}" dir="${ant.file.restcomm.release}/../checkout/core">
+			<arg line="install -Dmaven.test.skip=true -Drelease.dir=${release.dir} -Djboss.home=${wildfly.home} -Djboss.path=../../${wildfly.home.relative.path} -Prelease,set-git-hash,${core.profiles}" />
+		</exec>
+		<!--exec failonerror="true" executable="${mvn.executable}" dir="${ant.file.restcomm.release}/../checkout/core">
+			<arg line="javadoc:aggregate -DreportOutputDirectory=${release.dir}/docs/container -DdestDir=javadoc" />
+		</exec-->
+	</target>
+
+	<target name="build-resources" depends="build-jdbc,build-sip,build-http,build-media,build-tftp,build-xcap,build-xmpp,build-diameter,build-ss7,build-smpp,build-javaee">
+		<echo message="Build Resources"/>
+	</target>
+
+	<target name="build-package" description="builds a SLEE package, use package.name and javadoc.dirs to pass the package singularities">
+		<exec failonerror="true" executable="${mvn.executable}" dir="${packages.dir}/${package.name}">
+			<arg line="install ${build.parameters} -DskipTests -Drelease.dir=${release.dir} -Djboss.home=${tmp.wildfly.home} -Djboss.path=../../${wildfly.home.relative.path} -Prelease,set-git-hash,${release.profile}" />
+		</exec>
+		<for delimiter="," param="dir.name" list="${javadoc.dirs}">
+			<sequential>
+				<!--if building the documentation fails proceed with failonerror="false" -->
+				<exec failonerror="false" executable="${mvn.executable}" dir="${packages.dir}/${package.name}/@{dir.name}">
+					<arg line="javadoc:aggregate -DreportOutputDirectory=${release.dir}/docs/@{dir.name} -DdestDir=javadoc" />
+				</exec>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="build-jdbc" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="jdbc" />
+			<param name="javadoc.dirs" value="resources/jdbc" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-sip" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="sip" />
+			<param name="javadoc.dirs" value="resources/sip11,enablers/sip-publication-client,enablers/sip-subscription-client" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-http" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="http" />
+			<param name="javadoc.dirs" value="resources/http-servlet,resources/http-client,resources/http-client-nio,enablers/rest-client" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-media" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="media" />
+			<param name="javadoc.dirs" value="resources/mgcp,resources/mscontrol" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-tftp" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="tftp" />
+			<param name="javadoc.dirs" value="resources/tftp-server" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-xcap" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="xcap" />
+			<param name="javadoc.dirs" value="resources/xcap-client,enablers/xdm-client" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-xmpp" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="xmpp" />
+			<param name="javadoc.dirs" value="resources/xmpp" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-diameter" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="diameter" />
+			<param name="javadoc.dirs" value="resources/diameter-base,resources/diameter-cca,resources/diameter-cx-dx,resources/diameter-gq,resources/diameter-gx,resources/diameter-rf,resources/diameter-ro,resources/diameter-rx,resources/diameter-s6a,resources/diameter-sh-client,resources/diameter-sh-server,enablers/hss-client" />
+			<param name="build.parameters" value=" -Drestcomm.diameter.jdiameter.version=${diameter.version} -Drestcomm.diameter.mux.version=${diameter.version}"/>
+		</antcall>
+	</target>
+
+	<target name="build-ss7" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="ss7" />
+			<param name="javadoc.dirs" value="resources/map,resources/cap,resources/tcap,resources/isup" />
+			<param name="build.parameters" value=" -Dss7.version=${ss7.version}"/>
+		</antcall>
+	</target>
+
+	<target name="build-smpp" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="smpp" />
+			<param name="javadoc.dirs" value="resources/smpp" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<target name="build-sip-balancer" description="">
+		<exec failonerror="true" executable="${mvn.executable}" dir="${ant.file.restcomm.release}/../checkout/extra/sip-balancer">
+			<arg line="clean install -P set-git-hash -Dmaven.test.skip=true" />
+		</exec>
+
+		<copy failonerror="true" toDir="${release.dir}/extra/sip-balancer" overwrite="true">
+			<fileset dir="${ant.file.restcomm.release}/../checkout/extra/sip-balancer/jar/target">
+				<include name="**.jar" />
+			</fileset>
+			<fileset dir="${ant.file.restcomm.release}/../checkout/extra/sip-balancer">
+				<include name="lb-configuration.xml" />
+				<include name="lb-log4j.xml" />
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="build-javaee" description="">
+		<antcall target="build-package">
+			<param name="package.name" value="javaee" />
+			<param name="javadoc.dirs" value="" />
+			<param name="build.parameters" value=""/>
+		</antcall>
+	</target>
+
+	<!-- remove building the sip load balancer for now -->
+	<target name="release-wildfly" depends="clean,
+		get-wildfly,unzip-wildfly,setup-wildfly,
+		get-extra,checkout-sources,
+		build-core,build-resources,
+		copy-asciidocs,build-sources-for-debug-zip">
+		<tstamp>
+			<format property="time.stamp" pattern="yyyyMMdd-HHmm" />
+		</tstamp>
+		<delete dir="." includes="${release.profile}-slee-${release.version}-wildfly-${wildfly.version}}.zip" />
+		<antcall target="zip-wildfly">
+			<param name="zip.filename" value="${release.profile}-slee-${release.version}-wildfly-${wildfly.version}.zip" />
+			<param name="wildfly.home" value="${wildfly.home}" />
+		</antcall>
+		<!--<delete dir="${wildfly.home}" failonerror="true" />-->
+		<!--<antcall target="clean" />-->
+	</target>
+
+    <target name="copy-asciidocs" depends="copy-core-asciidoc,copy-sip-asciidoc,copy-ss7-asciidoc">
+        <echo message="Copying AsciiDocs"/>
+    </target>
+
+    <target name="copy-core-asciidoc">
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/core/container/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="container" />
+		</antcall>
+    </target>
+
+    <target name="copy-sip-asciidoc">
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/sip/resources/sip11/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="resources/sip11" />
+		</antcall>
+    </target>
+
+    <target name="copy-ss7-asciidoc">
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/ss7/resources/cap/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="resources/cap" />
+		</antcall>
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/ss7/resources/map/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="resources/map" />
+		</antcall>
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/ss7/resources/tcap/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="resources/tcap" />
+		</antcall>
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/ss7/resources/isup/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="resources/isup" />
+		</antcall>
+    </target>
+
+	<!--
+    <target name="copy-smpp-asciidoc">
+		<antcall target="copy-asciidoc">
+			<param name="generated.docs"
+				   value="${ant.file.restcomm.release}/../checkout/smpp/resources/smpp/docs/sources-asciidoc/target/generated-docs" />
+			<param name="docs.dir" value="resources/smpp" />
+		</antcall>
+    </target>
+    -->
+
+	<target name="copy-asciidoc">
+		<copy todir="${release.dir}/docs/${docs.dir}/user-guide/html-book" failonerror="false">
+			<fileset dir="${generated.docs}/html-book"/>
+		</copy>
+		<copy todir="${release.dir}/docs/${docs.dir}/user-guide/html-website" failonerror="false">
+			<fileset dir="${generated.docs}/html-website"/>
+		</copy>
+		<copy todir="${release.dir}/docs/${docs.dir}/user-guide/pdf" failonerror="false">
+			<fileset dir="${generated.docs}/pdf">
+				<include name="**/*User_Guide.pdf"/>
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="clean">
+		<delete dir="${output.dir}" />
+	</target>
+
+	<target name="get-wildfly" unless="got.wildfly">
+		<echo message="Downloading WildFly ${wildfly.version}"/>
+		<get verbose="false" dest="${ant.file.restcomm.release}/../${wildfly.distro.zip.path}" src="http://download.jboss.org/wildfly/${wildfly.version}/wildfly-${wildfly.version}.zip" />
+	</target>
+
+	<target name="unzip-wildfly">
+		<delete dir="${wildfly.home}" failonerror="true" />
+		<unzip src="${wildfly.distro.zip.path}" dest="${release.dir}" />
+	</target>
+
+	<target name="setup-wildfly">
+		<property name="wildfly.modules" value="${wildfly.home}/modules/system/layers/base/" />
+
+		<!-- H2 database -->
+		<echo message="Downloading last H2 database ${wildfly.version}"/>
+		<mkdir dir="${tmp.wildfly.home}"/>
+		<get verbose="false" dest="${tmp.wildfly.home}/${h2.distro.jar.path}" src="${h2database.url}" />
+
+		<delete><fileset dir="${wildfly.modules}/com/h2database/h2/main/" includes="**/*.jar"/></delete>
+		<copy file="${tmp.wildfly.home}/${h2.distro.jar.path}" todir="${wildfly.modules}/com/h2database/h2/main/"/>
+		<replaceregexp file="${wildfly.modules}/com/h2database/h2/main/module.xml"
+					   match="&lt;resource-root path=(.*)/&gt;"
+					   replace="&lt;resource-root path=&quot;${h2.distro.jar.path}&quot;/&gt;"
+					   byline="true"
+		/>
+
+		<replace casesensitive="false" file="${wildfly.home}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[<connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>]]></replacetoken>
+			<replacevalue><![CDATA[<connection-url>jdbc:h2:~/test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>]]></replacevalue>
+		</replace>
+
+		<!-- org.apache.commons.lang -->
+		<replace casesensitive="false" file="${wildfly.modules}/org/apache/commons/lang/main/module.xml">
+			<replacetoken><![CDATA[</dependencies>]]></replacetoken>
+			<replacevalue><![CDATA[
+		<module name="org.restcomm.slee.container.lib"/>
+	</dependencies>]]>
+			</replacevalue>
+		</replace>
+
+		<!-- adding of a security domain into standalone.xml, unnecessary after ESMSC-360 -->
+		<!-- <xmltask source="${wildfly.home}/standalone/configuration/standalone.xml" dest="${wildfly.home}/standalone/configuration/standalone.xml">
+			<remove path="/:server/:profile/*[local-name()='subsystem']/*[local-name()='security-domains']/*[local-name()='security-domain' and @name='jmx-console']"/>
+			<insert path="/:server/:profile/*[local-name()='subsystem']/*[local-name()='security-domains']/*[local-name()='security-domain'][last()]" position="after" file="template/security-domains.txt"/>
+		</xmltask> -->
+
+		<!-- Formatting the standalone.xml file (Removing extra Blank Spaces)-->
+		<replaceregexp file="${wildfly.home}/standalone/configuration/standalone.xml"
+					   match="(\r?\n)\s*\r?\n"
+					   flags="g"
+					   replace="\1"/>
+
+		<!-- Replacing elytron:14.0 module, since ESMSC-360 -->
+		<replace casesensitive="false"
+				 file="${wildfly.home}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[        <subsystem xmlns="urn:wildfly:elytron:14.0" final-providers="combined-providers" disallowed-providers="OracleUcrypto">
+            <providers>
+                <aggregate-providers name="combined-providers">
+                    <providers name="elytron"/>
+                    <providers name="openssl"/>
+                </aggregate-providers>
+                <provider-loader name="elytron" module="org.wildfly.security.elytron"/>
+                <provider-loader name="openssl" module="org.wildfly.openssl"/>
+            </providers>
+            <audit-logging>
+                <file-audit-log name="local-audit" path="audit.log" relative-to="jboss.server.log.dir" format="JSON"/>
+            </audit-logging>
+            <security-domains>
+                <security-domain name="ApplicationDomain" default-realm="ApplicationRealm" permission-mapper="default-permission-mapper">
+                    <realm name="ApplicationRealm" role-decoder="groups-to-roles"/>
+                    <realm name="local"/>
+                </security-domain>
+                <security-domain name="ManagementDomain" default-realm="ManagementRealm" permission-mapper="default-permission-mapper">
+                    <realm name="ManagementRealm" role-decoder="groups-to-roles"/>
+                    <realm name="local" role-mapper="super-user-mapper"/>
+                </security-domain>
+            </security-domains>
+            <security-realms>
+                <identity-realm name="local" identity="$local"/>
+                <properties-realm name="ApplicationRealm">
+                    <users-properties path="application-users.properties" relative-to="jboss.server.config.dir" digest-realm-name="ApplicationRealm"/>
+                    <groups-properties path="application-roles.properties" relative-to="jboss.server.config.dir"/>
+                </properties-realm>
+                <properties-realm name="ManagementRealm">
+                    <users-properties path="mgmt-users.properties" relative-to="jboss.server.config.dir" digest-realm-name="ManagementRealm"/>
+                    <groups-properties path="mgmt-groups.properties" relative-to="jboss.server.config.dir"/>
+                </properties-realm>
+            </security-realms>
+            <mappers>
+                <simple-permission-mapper name="default-permission-mapper" mapping-mode="first">
+                    <permission-mapping>
+                        <principal name="anonymous"/>
+                        <permission-set name="default-permissions"/>
+                    </permission-mapping>
+                    <permission-mapping match-all="true">
+                        <permission-set name="login-permission"/>
+                        <permission-set name="default-permissions"/>
+                    </permission-mapping>
+                </simple-permission-mapper>
+                <constant-realm-mapper name="local" realm-name="local"/>
+                <simple-role-decoder name="groups-to-roles" attribute="groups"/>
+                <constant-role-mapper name="super-user-mapper">
+                    <role name="SuperUser"/>
+                </constant-role-mapper>
+            </mappers>
+            <permission-sets>
+                <permission-set name="login-permission">
+                    <permission class-name="org.wildfly.security.auth.permission.LoginPermission"/>
+                </permission-set>
+                <permission-set name="default-permissions">
+                    <permission class-name="org.wildfly.extension.batch.jberet.deployment.BatchPermission" module="org.wildfly.extension.batch.jberet" target-name="*"/>
+                    <permission class-name="org.wildfly.transaction.client.RemoteTransactionPermission" module="org.wildfly.transaction.client"/>
+                    <permission class-name="org.jboss.ejb.client.RemoteEJBPermission" module="org.jboss.ejb-client"/>
+                </permission-set>
+            </permission-sets>
+            <http>
+                <http-authentication-factory name="management-http-authentication" security-domain="ManagementDomain" http-server-mechanism-factory="global">
+                    <mechanism-configuration>
+                        <mechanism mechanism-name="DIGEST">
+                            <mechanism-realm realm-name="ManagementRealm"/>
+                        </mechanism>
+                    </mechanism-configuration>
+                </http-authentication-factory>
+                <provider-http-server-mechanism-factory name="global"/>
+            </http>
+            <sasl>
+                <sasl-authentication-factory name="application-sasl-authentication" sasl-server-factory="configured" security-domain="ApplicationDomain">
+                    <mechanism-configuration>
+                        <mechanism mechanism-name="JBOSS-LOCAL-USER" realm-mapper="local"/>
+                        <mechanism mechanism-name="DIGEST-MD5">
+                            <mechanism-realm realm-name="ApplicationRealm"/>
+                        </mechanism>
+                    </mechanism-configuration>
+                </sasl-authentication-factory>
+                <sasl-authentication-factory name="management-sasl-authentication" sasl-server-factory="configured" security-domain="ManagementDomain">
+                    <mechanism-configuration>
+                        <mechanism mechanism-name="JBOSS-LOCAL-USER" realm-mapper="local"/>
+                        <mechanism mechanism-name="DIGEST-MD5">
+                            <mechanism-realm realm-name="ManagementRealm"/>
+                        </mechanism>
+                    </mechanism-configuration>
+                </sasl-authentication-factory>
+                <configurable-sasl-server-factory name="configured" sasl-server-factory="elytron">
+                    <properties>
+                        <property name="wildfly.sasl.local-user.default-user" value="$local"/>
+                    </properties>
+                </configurable-sasl-server-factory>
+                <mechanism-provider-filtering-sasl-server-factory name="elytron" sasl-server-factory="global">
+                    <filters>
+                        <filter provider-name="WildFlyElytron"/>
+                    </filters>
+                </mechanism-provider-filtering-sasl-server-factory>
+                <provider-sasl-server-factory name="global"/>
+            </sasl>
+            <tls>
+                <key-stores>
+                    <key-store name="applicationKS">
+                        <credential-reference clear-text="password"/>
+                        <implementation type="JKS"/>
+                        <file path="application.keystore" relative-to="jboss.server.config.dir"/>
+                    </key-store>
+                </key-stores>
+                <key-managers>
+                    <key-manager name="applicationKM" key-store="applicationKS" generate-self-signed-certificate-host="localhost">
+                        <credential-reference clear-text="password"/>
+                    </key-manager>
+                </key-managers>
+                <server-ssl-contexts>
+                    <server-ssl-context name="applicationSSC" key-manager="applicationKM"/>
+                </server-ssl-contexts>
+            </tls>
+        </subsystem>]]></replacetoken>
+			<replacevalue><![CDATA[        <subsystem xmlns="urn:wildfly:elytron:14.0" disallowed-providers="OracleUcrypto" final-providers="combined-providers">
+	        <providers>
+                <aggregate-providers name="combined-providers">
+                    <providers name="elytron"/>
+                    <providers name="openssl"/>
+                </aggregate-providers>
+                <provider-loader module="org.wildfly.security.elytron" name="elytron"/>
+                <provider-loader module="org.wildfly.openssl" name="openssl"/>
+            </providers>
+            <audit-logging>
+                <file-audit-log format="JSON" name="local-audit" path="audit.log" relative-to="jboss.server.log.dir"/>
+            </audit-logging>
+            <security-domains>
+                <security-domain default-realm="jmx-console" name="ApplicationDomain" permission-mapper="default-permission-mapper">
+		    <realm name="jmx-console"/>
+		    <realm name="ApplicationRealm" role-decoder="groups-to-roles"/>
+                    <realm name="local"/>
+                </security-domain>
+                <security-domain default-realm="ManagementRealm" name="ManagementDomain" permission-mapper="default-permission-mapper">
+                    <realm name="ManagementRealm" role-decoder="groups-to-roles"/>
+                    <realm name="local" role-mapper="super-user-mapper"/>
+	    	    </security-domain>
+		        <security-domain name="jmx-console" default-realm="jmx-console" permission-mapper="default-permission-mapper">
+        		    <realm name="jmx-console"/>
+		        </security-domain>
+	        </security-domains>
+	        <security-realms>
+		        <custom-realm name="jmx-console" module="org.paicbd.permission.bootstrap" class-name="org.paicbd.permission.auth.CustomSecurityRealm">
+		        </custom-realm>
+                <identity-realm identity="$local" name="local"/>
+                <properties-realm name="ApplicationRealm">
+                    <users-properties digest-realm-name="ApplicationRealm" path="application-users.properties" relative-to="jboss.server.config.dir"/>
+                    <groups-properties path="application-roles.properties" relative-to="jboss.server.config.dir"/>
+                </properties-realm>
+                <properties-realm name="ManagementRealm">
+                    <users-properties digest-realm-name="ManagementRealm" path="mgmt-users.properties" relative-to="jboss.server.config.dir"/>
+                    <groups-properties path="mgmt-groups.properties" relative-to="jboss.server.config.dir"/>
+	    	    </properties-realm>
+            </security-realms>
+            <mappers>
+                <simple-permission-mapper mapping-mode="first" name="default-permission-mapper">
+                    <permission-mapping>
+                        <principal name="anonymous"/>
+                        <permission-set name="default-permissions"/>
+                    </permission-mapping>
+                    <permission-mapping match-all="true">
+                        <permission-set name="login-permission"/>
+                        <permission-set name="default-permissions"/>
+                    </permission-mapping>
+                </simple-permission-mapper>
+                <constant-realm-mapper name="local" realm-name="local"/>
+                <simple-role-decoder attribute="groups" name="groups-to-roles"/>
+                <constant-role-mapper name="super-user-mapper">
+                    <role name="SuperUser"/>
+                </constant-role-mapper>
+            </mappers>
+            <permission-sets>
+                <permission-set name="login-permission">
+                    <permission class-name="org.wildfly.security.auth.permission.LoginPermission"/>
+                </permission-set>
+                <permission-set name="default-permissions">
+                    <permission class-name="org.wildfly.extension.batch.jberet.deployment.BatchPermission" module="org.wildfly.extension.batch.jberet" target-name="*"/>
+                    <permission class-name="org.wildfly.transaction.client.RemoteTransactionPermission" module="org.wildfly.transaction.client"/>
+                    <permission class-name="org.jboss.ejb.client.RemoteEJBPermission" module="org.jboss.ejb-client"/>
+                </permission-set>
+            </permission-sets>
+            <http>
+                <http-authentication-factory http-server-mechanism-factory="global" name="management-http-authentication" security-domain="ManagementDomain">
+                    <mechanism-configuration>
+                        <mechanism mechanism-name="DIGEST">
+                            <mechanism-realm realm-name="ManagementRealm"/>
+                        </mechanism>
+                    </mechanism-configuration>
+                </http-authentication-factory>
+		        <provider-http-server-mechanism-factory name="global"/>
+		        <http-authentication-factory name="application-security-http" http-server-mechanism-factory="global" security-domain="jmx-console">
+        		    <mechanism-configuration>
+          			    <mechanism mechanism-name="FORM"/>
+        		    </mechanism-configuration>
+		        </http-authentication-factory>
+            </http>
+	        <sasl>
+                <sasl-authentication-factory name="application-sasl-authentication" sasl-server-factory="configured" security-domain="ApplicationDomain">
+                    <mechanism-configuration>
+                        <mechanism mechanism-name="JBOSS-LOCAL-USER" realm-mapper="local"/>
+                        <mechanism mechanism-name="DIGEST-MD5">
+                            <mechanism-realm realm-name="ApplicationRealm"/>
+                        </mechanism>
+                    </mechanism-configuration>
+                </sasl-authentication-factory>
+                <sasl-authentication-factory name="management-sasl-authentication" sasl-server-factory="configured" security-domain="ManagementDomain">
+                    <mechanism-configuration>
+                        <mechanism mechanism-name="JBOSS-LOCAL-USER" realm-mapper="local"/>
+                        <mechanism mechanism-name="DIGEST-MD5">
+                            <mechanism-realm realm-name="ManagementRealm"/>
+                        </mechanism>
+                    </mechanism-configuration>
+                </sasl-authentication-factory>
+                <configurable-sasl-server-factory name="configured" sasl-server-factory="elytron">
+                    <properties>
+                        <property name="wildfly.sasl.local-user.default-user" value="$local"/>
+                    </properties>
+                </configurable-sasl-server-factory>
+                <mechanism-provider-filtering-sasl-server-factory name="elytron" sasl-server-factory="global">
+                    <filters>
+                        <filter provider-name="WildFlyElytron"/>
+                    </filters>
+                </mechanism-provider-filtering-sasl-server-factory>
+                <provider-sasl-server-factory name="global"/>
+            </sasl>
+            <tls>
+                <key-stores>
+                    <key-store name="applicationKS">
+                        <credential-reference clear-text="password"/>
+                        <implementation type="JKS"/>
+                        <file path="application.keystore" relative-to="jboss.server.config.dir"/>
+                    </key-store>
+                </key-stores>
+                <key-managers>
+                    <key-manager generate-self-signed-certificate-host="localhost" key-store="applicationKS" name="applicationKM">
+                        <credential-reference clear-text="password"/>
+                    </key-manager>
+                </key-managers>
+                <server-ssl-contexts>
+                    <server-ssl-context key-manager="applicationKM" name="applicationSSC"/>
+                </server-ssl-contexts>
+            </tls>
+        </subsystem>]]></replacevalue>
+		</replace>
+
+		<!-- Replacing undertow:12.0 module, since ESMSC-360 -->
+		<replace casesensitive="false"
+				 file="${wildfly.home}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[        <subsystem xmlns="urn:jboss:domain:undertow:12.0" default-server="default-server" default-virtual-host="default-host" default-servlet-container="default" default-security-domain="other" statistics-enabled="${wildfly.undertow.statistics-enabled:${wildfly.statistics-enabled:false}}">
+            <buffer-cache name="default"/>
+            <server name="default-server">
+                <http-listener name="default" socket-binding="http" redirect-socket="https" enable-http2="true"/>
+                <https-listener name="https" socket-binding="https" security-realm="ApplicationRealm" enable-http2="true"/>
+                <host name="default-host" alias="localhost">
+                    <location name="/" handler="welcome-content"/>
+                    <http-invoker security-realm="ApplicationRealm"/>
+                </host>
+            </server>
+            <servlet-container name="default">
+                <jsp-config/>
+                <websockets/>
+            </servlet-container>
+            <handlers>
+                <file name="welcome-content" path="${jboss.home.dir}/welcome-content"/>
+            </handlers>
+        </subsystem>]]></replacetoken>
+			<replacevalue><![CDATA[        <subsystem xmlns="urn:jboss:domain:undertow:12.0" default-server="default-server" default-servlet-container="default" default-virtual-host="default-host" statistics-enabled="${wildfly.undertow.statistics-enabled:${wildfly.statistics-enabled:false}}">
+            <buffer-cache name="default"/>
+            <server name="default-server">
+                <http-listener enable-http2="true" name="default" redirect-socket="https" socket-binding="http"/>
+                <https-listener enable-http2="true" name="https" security-realm="ApplicationRealm" socket-binding="https" enabled-protocols="TLSv1.2"/>
+                <host alias="localhost" name="default-host">
+                    <location handler="welcome-content" name="/"/>
+                    <http-invoker security-realm="ApplicationRealm"/>
+                    <filter-ref name="custom-handler"/>
+                </host>
+            </server>
+            <application-security-domains>
+                <application-security-domain name="jmx-console" security-domain ="jmx-console"/>
+                <application-security-domain name="other" security-domain="ApplicationDomain"/>
+            </application-security-domains>
+            <servlet-container name="default">
+                <jsp-config/>
+                <websockets/>
+            </servlet-container>
+            <handlers>
+                <file name="welcome-content" path="${jboss.home.dir}/welcome-content"/>
+            </handlers>
+            <filters>
+                <filter name="custom-handler"
+                    module="org.paicbd.permission.bootstrap"
+                    class-name="org.paicbd.permission.handler.CustomHandler"/>
+            </filters>
+        </subsystem>]]></replacevalue>
+		</replace>
+
+		<!-- WildFly 24.X.X + includes a security module generating this configuration twice, removing one of them -->
+		<!-- Commenting next sections, this is unnecessary after ESMSC-360 -->
+		<!-- <replace casesensitive="false"
+				 file="${wildfly.home}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[<realm name="local" role-mapper="super-user-mapper"/>
+                </security-domain>
+                <security-domain xmlns="urn:jboss:domain:security:1.2" cache-type="default" name="jmx-console">
+                    <authentication>
+                        <login-module code="org.jboss.security.auth.spi.UsersRolesLoginModule" flag="required">
+                            <module-option name="usersProperties" value="${jboss.server.config.dir}/jmx-users.properties"/>
+                            <module-option name="rolesProperties" value="${jboss.server.config.dir}/jmx-roles.properties"/>
+                        </login-module>
+                    </authentication>
+                </security-domain>]]></replacetoken>
+			<replacevalue><![CDATA[<realm name="local" role-mapper="super-user-mapper"/>
+                </security-domain>]]></replacevalue>
+		</replace> -->
+
+		<!-- WildFly 24.X.X removed the org.apache.commons.pool module, then next ANT task creates this missing module -->
+		<echo>Setting Up Commons Pool</echo>
+
+		<mkdir dir="${wildfly.home}/modules/system/layers/base/org/apache/commons/pool/main/"/>
+		<touch file="${wildfly.home}/modules/system/layers/base/org/apache/commons/pool/main/module.xml"/>
+		<concat destfile="${wildfly.home}/modules/system/layers/base/org/apache/commons/pool/main/module.xml" append="true">
+			<filelist dir="template" files="common-pool.txt"/>
+		</concat>
+		<get dest="${wildfly.home}/modules/system/layers/base/org/apache/commons/pool/main/">
+			<url url="https://repo1.maven.org/maven2/commons-pool/commons-pool/1.6/commons-pool-1.6.jar"/>
+		</get>
+
+		<copy overwrite="true" todir="${wildfly.home}/standalone/configuration">
+			<fileset dir="${basedir}/template">
+				<include name="jmx-roles.properties" />
+				<include name="jmx-users.properties" />
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="get-extra" depends="get-diameter,unzip-diameter,get-ss7,unzip-ss7,setup-ss7,get-smppext,unzip-smppext,setup-smppext">
+	</target>
+
+	<available file="${ant.file.restcomm.release}/../${diameter.distro.zip.path}" property="got.diameter" />
+	<target name="get-diameter" unless="got.diameter">
+		<echo>Downloading Diameter</echo>
+		<get dest="${ant.file.restcomm.release}/../${diameter.distro.zip.path}" src="${diameter.download.url}" />
+	</target>
+
+	<target name="unzip-diameter">
+		<delete dir="${release.dir}/extra/restcomm-diameter" failonerror="true" />
+		<unzip src="${diameter.distro.zip.path}" dest="${release.dir}/extra/restcomm-diameter" />
+	</target>
+
+	<available file="${ant.file.restcomm.release}/../${ss7.distro.zip.path}" property="got.ss7" />
+	<target name="get-ss7" unless="got.ss7">
+		<echo>Downloading SS7</echo>
+		<get dest="${ant.file.restcomm.release}/../${ss7.distro.zip.path}" src="${ss7.download.url}" />
+	</target>
+
+	<target name="unzip-ss7">
+		<delete dir="${release.dir}/extra/restcomm-ss7" failonerror="false" />
+		<unzip src="${ss7.distro.zip.path}" dest="${release.dir}/extra/restcomm-ss7" />
+	</target>
+
+	<target name="setup-ss7">
+		<property name="ss7.release.dir" value="${release.dir}/extra/restcomm-ss7/Extended-jSS7-${ss7.version}" />
+		<delete dir="${ss7.release.dir}/ss7/restcomm-ss7-service/lib" failonerror="true" />
+		<delete dir="${ss7.release.dir}/ss7/restcomm-ss7-service/META-INF" failonerror="true" />
+		<delete file="${ss7.release.dir}/ss7/build-jboss5.xml" failonerror="true" />
+		<move file="${ss7.release.dir}/ss7-wildfly/build.xml"
+			  tofile="${ss7.release.dir}/ss7/build.xml" failonerror="true"/>
+	</target>
+
+	<available file="${ant.file.restcomm.release}/../${smppext.distro.zip.path}" property="got.smppext" />
+	<target name="get-smppext" unless="got.smppext">
+		<echo>Downloading SMPP Extensions</echo>
+		<get dest="${ant.file.restcomm.release}/../${smppext.distro.zip.path}" src="${smppext.download.url}" />
+	</target>
+
+	<target name="unzip-smppext">
+		<delete dir="${release.dir}/extra/restcomm-smpp-extensions" failonerror="true" />
+		<unzip src="${smppext.distro.zip.path}" dest="${release.dir}/extra/restcomm-smpp-extensions" />
+	</target>
+
+	<target name="setup-smppext">
+		<property name="smppext.release.dir"
+				  value="${release.dir}/extra/restcomm-smpp-extensions/restcomm-smpp-extensions-${smppext.version}" />
+		<delete dir="${smppext.release.dir}/jboss5" failonerror="true" />
+	</target>
+
+	<target name="checkout-sources">
+		<echo>Checking out sources</echo>
+		<delete dir="${packages.dir}" />
+		<exec failonerror="true" executable="${mvn.executable}" dir="${ant.file.restcomm.release}/../">
+			<!--<arg line="validate -Pcheckout -Dcheckout.basedir=${packages.dir} -Dcore.scmVersion=${jslee.version}" />-->
+			<arg line="validate -Pcheckout -Dcheckout.basedir=${packages.dir} ${validate.versions}" />
+		</exec>
+	</target>
+
+	<!-- zip sources for debug -->
+
+	<target name="build-sources-for-debug-zip" depends="">
+		<property name="debug.src.zip.filename" value="sources.zip" />
+		<mkdir dir="${release.dir}/sources" />
+		<for param="dir.name">
+			<dirset dir="${ant.file.restcomm.release}/../checkout" includes="**/src/main/java" excludes="**/maven-archetypes/** **/management-console/**" />
+			<sequential>
+				<echo>Packaging debug src for @{dir.name}</echo>
+				<copy todir="${release.dir}/sources" includeEmptyDirs="yes">
+					<fileset dir="@{dir.name}" />
+				</copy>
+			</sequential>
+		</for>
+		<zip destfile="${release.dir}/${debug.src.zip.filename}" basedir="${release.dir}/sources" />
+		<delete dir="${release.dir}/sources" />
+	</target>
+
+	<!-- zip release -->
+
+	<target name="zip-wildfly" description="">
+		<fixcrlf srcdir="${wildfly.home}/bin" includes="*.sh" eol="lf" eof="remove" />
+		<exec executable="chmod" dir="${wildfly.home}" failonerror="true">
+			<arg line="-R 0755 ." />
+		</exec>
+		<zip destfile="${ant.file.restcomm.release}/../${zip.filename}" filesonly="false">
+			<zipfileset dir="${release.dir}" prefix="${release.profile}-slee-${release.version}-wildfly-${wildfly.version}" filemode="755" includes="**/*.sh" />
+			<zipfileset dir="${release.dir}" prefix="${release.profile}-slee-${release.version}-wildfly-${wildfly.version}" />
+		</zip>
+	</target>
+</project>
