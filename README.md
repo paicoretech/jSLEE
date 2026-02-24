@@ -1,19 +1,56 @@
+# jSLEE
 
-[Try Restcomm Cloud NOW for FREE!](https://www.restcomm.com/sign-up/) Zero download and install required.
+jSLEE is an open-source Java implementation of the **JAIN SLEE (Service Logic Execution Environment)** specification, providing a scalable, event-driven application server for telecom and signaling platforms.
 
+It offers a robust component model and a fault-tolerant execution environment designed to support carrier-grade services and protocol integrations.
 
-All Restcomm [docs](https://www.restcomm.com/docs/) and [downloads](https://www.restcomm.com/downloads/) are now available at [Restcomm.com](https://www.restcomm.com).
+This repository is maintained and published as open source by **PAiCore Technologies**.  
+For more information, visit **https://paicore.tech**.
 
+---
 
-RestComm JAIN-SLEE
-============
+## Features
 
-[![Join the chat at https://gitter.im/RestComm/jain-slee](https://badges.gitter.im/RestComm/jain-slee.svg)](https://gitter.im/RestComm/jain-slee?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2FRestComm%2Fjain-slee.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2FRestComm%2Fjain-slee?ref=badge_shield)
+- Event-driven execution model compliant with JAIN SLEE concepts  
+- Scalable and fault-tolerant runtime architecture  
+- Component-based service development model  
+- Designed for high-throughput telecom environments  
 
-RestComm JAIN SLEE is a highly scalable event-driven application server with a robust component model and fault tolerant execution environment. 
+---
 
-RestComm JAIN-SLEE is the first and only Open Source Platform compliant with JAIN-SLEE 1.1 (JSR 240). 
+## Protocol & Network Integration
 
-It provides a set of connectors to a variety of networks elements: 
-SS7, MAP, CAP, TCAP, INAP, ISUP, XMPP, SIP, MGCP, HTTP, SMPP, XDM, XCAP and many others.
+jSLEE is commonly integrated with a wide range of telecom protocols and network elements, including:
+
+- SS7 / MAP / CAP / TCAP / INAP / ISUP  
+- SIP  
+- SMPP  
+- HTTP / XCAP / XDM  
+- XMPP  
+- MGCP  
+
+Additional protocol enablers can be integrated through resource adaptors.
+
+---
+
+## Build Prerequisites
+
+- Java 11 (OpenJDK recommended)  
+- Maven 3.x  
+
+---
+
+## Build from Source
+
+```bash
+git clone https://github.com/paicoretech/jSLEE.git
+cd jSLEE
+mvn clean install
+```
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.  
+See the [LICENSE](LICENSE) file for details.
